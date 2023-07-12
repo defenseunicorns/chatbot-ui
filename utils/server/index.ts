@@ -1,13 +1,19 @@
-import { Message } from '@/types/chat';
-import { OpenAIModel } from '@/types/openai';
-
-import { AZURE_DEPLOYMENT_ID, OPENAI_API_HOST, OPENAI_API_TYPE, OPENAI_API_VERSION, OPENAI_ORGANIZATION } from '../app/const';
+import { Message } from "@/types/chat";
+import { OpenAIModel } from "@/types/openai";
 
 import {
+  AZURE_DEPLOYMENT_ID,
+  OPENAI_API_HOST,
+  OPENAI_API_TYPE,
+  OPENAI_API_VERSION,
+  OPENAI_ORGANIZATION,
+} from "../app/const";
+
+import {
+  createParser,
   ParsedEvent,
   ReconnectInterval,
-  createParser,
-} from 'eventsource-parser';
+} from "eventsource-parser";
 
 export class OpenAIError extends Error {
   type: string;
@@ -16,7 +22,7 @@ export class OpenAIError extends Error {
 
   constructor(message: string, type: string, param: string, code: string) {
     super(message);
-    this.name = 'OpenAIError';
+    this.name = "OpenAIError";
     this.type = type;
     this.param = param;
     this.code = code;
@@ -26,33 +32,34 @@ export class OpenAIError extends Error {
 export const OpenAIStream = async (
   model: OpenAIModel,
   systemPrompt: string,
-  temperature : number,
+  temperature: number,
   key: string,
   messages: Message[],
 ) => {
   let url = `${OPENAI_API_HOST}/v1/chat/completions`;
-  if (OPENAI_API_TYPE === 'azure') {
-    url = `${OPENAI_API_HOST}/openai/deployments/${AZURE_DEPLOYMENT_ID}/chat/completions?api-version=${OPENAI_API_VERSION}`;
+  if (OPENAI_API_TYPE === "azure") {
+    url =
+      `${OPENAI_API_HOST}/openai/deployments/${AZURE_DEPLOYMENT_ID}/chat/completions?api-version=${OPENAI_API_VERSION}`;
   }
   const res = await fetch(url, {
     headers: {
-      'Content-Type': 'application/json',
-      ...(OPENAI_API_TYPE === 'openai' && {
-        Authorization: `Bearer ${key ? key : process.env.OPENAI_API_KEY}`
+      "Content-Type": "application/json",
+      ...(OPENAI_API_TYPE === "openai" && {
+        Authorization: `Bearer ${key ? key : process.env.OPENAI_API_KEY}`,
       }),
-      ...(OPENAI_API_TYPE === 'azure' && {
-        'api-key': `${key ? key : process.env.OPENAI_API_KEY}`
+      ...(OPENAI_API_TYPE === "azure" && {
+        "api-key": `${key ? key : process.env.OPENAI_API_KEY}`,
       }),
-      ...((OPENAI_API_TYPE === 'openai' && OPENAI_ORGANIZATION) && {
-        'OpenAI-Organization': OPENAI_ORGANIZATION,
+      ...((OPENAI_API_TYPE === "openai" && OPENAI_ORGANIZATION) && {
+        "OpenAI-Organization": OPENAI_ORGANIZATION,
       }),
     },
-    method: 'POST',
+    method: "POST",
     body: JSON.stringify({
-      ...(OPENAI_API_TYPE === 'openai' && {model: model.id}),
+      ...(OPENAI_API_TYPE === "openai" && { model: model.id }),
       messages: [
         {
-          role: 'system',
+          role: "system",
           content: systemPrompt,
         },
         ...messages,
@@ -87,16 +94,22 @@ export const OpenAIStream = async (
   const stream = new ReadableStream({
     async start(controller) {
       const onParse = (event: ParsedEvent | ReconnectInterval) => {
-        if (event.type === 'event') {
+        console.log(event.type);
+        if (event.type === "event") {
           const data = event.data;
 
           try {
             const json = JSON.parse(data);
-            if (json.choices[0].finish_reason != null) {
+            console.log(json.choices[0]);
+            if (
+              json.choices[0].finish_reason != null &&
+              json.choices[0].finish_reason !== ""
+            ) {
               controller.close();
               return;
             }
-            const text = json.choices[0].delta.content;
+            const text = json.choices[0].message.content;
+            console.log(text);
             const queue = encoder.encode(text);
             controller.enqueue(queue);
           } catch (e) {
