@@ -7,7 +7,7 @@ import HomeContext from '@/pages/api/home/home.context';
 
 import { SettingDialog } from '@/components/Settings/SettingDialog';
 
-import { Import } from '../../Settings/Import';
+import { Import, ImportFiles } from '../../Settings/Import';
 import { Key } from '../../Settings/Key';
 import { SidebarButton } from '../../Sidebar/SidebarButton';
 import ChatbarContext from '../Chatbar.context';
@@ -31,6 +31,7 @@ export const ChatbarSettings = () => {
 
   const {
     handleClearConversations,
+    handleImportFiles,
     handleImportConversations,
     handleExportData,
     handleApiKeyChange,
@@ -42,6 +43,7 @@ export const ChatbarSettings = () => {
         <ClearConversations onClearConversations={handleClearConversations} />
       ) : null}
 
+      <ImportFiles onImportFiles={handleImportFiles} />
       <Import onImport={handleImportConversations} />
 
       <SidebarButton

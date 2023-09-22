@@ -25,6 +25,7 @@ import ChatbarContext from './Chatbar.context';
 import { ChatbarInitialState, initialState } from './Chatbar.state';
 
 import { v4 as uuidv4 } from 'uuid';
+import { useFetch } from '@/hooks/useFetch';
 
 export const Chatbar = () => {
   const { t } = useTranslation('sidebar');
@@ -109,6 +110,14 @@ export const Chatbar = () => {
     homeDispatch({ field: 'prompts', value: prompts });
 
     window.location.reload();
+  };
+
+  const handleImportFiles = (data: FormData) => {
+    const fetchService = useFetch();
+
+    fetchService.post("http://localhost:8000/upload/", {
+      body: data,
+    });
   };
 
   const handleClearConversations = () => {
@@ -212,6 +221,7 @@ export const Chatbar = () => {
         ...chatBarContextValue,
         handleDeleteConversation,
         handleClearConversations,
+        handleImportFiles,
         handleImportConversations,
         handleExportData,
         handlePluginKeyChange,
