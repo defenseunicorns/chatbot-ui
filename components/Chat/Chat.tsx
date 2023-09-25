@@ -33,6 +33,11 @@ import { ModelSelect } from './ModelSelect';
 import { SystemPrompt } from './SystemPrompt';
 import { TemperatureSlider } from './Temperature';
 import { MemoizedChatMessage } from './MemoizedChatMessage';
+import { useFetch } from '@/hooks/useFetch';
+
+import {
+  RETRIEVAL_AUGMENTED_GENERATION
+} from "@/utils/app/const";
 
 interface Props {
   stopConversationRef: MutableRefObject<boolean>;
@@ -68,6 +73,17 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const getContextFromChromaDB = async (message: string, target_collection: string) => {
+    const fetchService = useFetch();
+
+    return fetchService.post("http://localhost:8000/query/", {
+      body: { input: message, collection_name: target_collection },
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  };
+
   const handleSend = useCallback(
     async (message: Message, deleteCount = 0, plugin: Plugin | null = null) => {
       if (selectedConversation) {
@@ -93,6 +109,14 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
         });
         homeDispatch({ field: 'loading', value: true });
         homeDispatch({ field: 'messageIsStreaming', value: true });
+
+        if (RETRIEVAL_AUGMENTED_GENERATION.toLocaleLowerCase() == "chroma") {
+          // Add the context from the ChromaDB server to the message list
+          let context: any = await getContextFromChromaDB(message.content, "default") // Use the default collection
+          // These have been flagged "assistant" for now, but another flag may be more appropriate
+          updatedConversation.messages.splice(updatedConversation.messages.length - 1, 0, { role: 'assistant', content: context['results'] });
+        }
+
         const chatBody: ChatBody = {
           model: updatedConversation.model,
           messages: updatedConversation.messages,
