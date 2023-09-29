@@ -146,6 +146,8 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           signal: controller.signal,
           body,
         });
+        // Remove our temporary message
+        updatedConversation.messages.splice(updatedConversation.messages.length - 2, 1)
         if (!response.ok) {
           homeDispatch({ field: 'loading', value: false });
           homeDispatch({ field: 'messageIsStreaming', value: false });
