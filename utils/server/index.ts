@@ -41,6 +41,10 @@ export const OpenAIStream = async (
     url =
       `${OPENAI_API_HOST}/openai/deployments/${AZURE_DEPLOYMENT_ID}/chat/completions?api-version=${OPENAI_API_VERSION}`;
   }
+  const controller = new AbortController();
+  const timeout = 600000000 
+  const id = setTimeout(() => controller.abort(), timeout);
+
   const res = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
@@ -55,6 +59,8 @@ export const OpenAIStream = async (
       }),
     },
     method: "POST",
+    timeout: Infinity,
+    signal: controller.signal,  
     body: JSON.stringify({
       ...(OPENAI_API_TYPE === "openai" && { model: model.id }),
       messages: [
@@ -64,16 +70,18 @@ export const OpenAIStream = async (
         },
         ...messages,
       ],
-      max_tokens: 1000,
+      max_tokens: 8000,
       temperature: temperature,
       stream: true,
     }),
   });
+  clearTimeout(id);
 
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
   if (res.status !== 200) {
+    console.error("error making post to the /api endpoint locally")
     const result = await res.json();
     if (result.error) {
       throw new OpenAIError(
@@ -101,19 +109,37 @@ export const OpenAIStream = async (
           try {
             const json = JSON.parse(data);
             console.log(json.choices[0]);
+
             if (
               json.choices[0].finish_reason != null &&
               json.choices[0].finish_reason !== ""
             ) {
+              console.log("closing the controller.  Is it too early to do this?")
               controller.close();
               return;
             }
-            const text = json.choices[0].message.content;
+            if (json.choices[0].delta.role === 'assistant') {
+              console.log("skipping role update")
+              return
+            }
+            const text = json.choices[0].delta.content;
+            if (text === "") { // probably just setting the role, so skip it
+              console.log("empty text, so setting role")
+              return
+            }
             console.log(text);
             const queue = encoder.encode(text);
             controller.enqueue(queue);
+            console.log("Added event to controller queue")
           } catch (e) {
-            controller.error(e);
+            if (e instanceof SyntaxError) {
+              console.error('Invalid JSON:', e.message);
+              // controller.close()
+          } else {
+              console.log("Error!!!! %v ", e)
+              // controller.error(e);
+          }
+            
           }
         }
       };
